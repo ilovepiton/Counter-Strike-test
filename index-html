@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Поймай кнопку</title>
+  <style>
+    body{
+      margin:0; height:100vh; display:flex; align-items:center; justify-content:center;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color:#fff;
+      background: radial-gradient(circle at 20% 20%, #6a00ff, transparent 40%),
+                  radial-gradient(circle at 80% 60%, #00d4ff, transparent 45%),
+                  #0b0b12;
+      overflow:hidden;
+      user-select:none;
+    }
+    .card{
+      width:min(920px, 95vw);
+      height:min(640px, 88vh);
+      border-radius:18px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+      position:relative;
+      overflow:hidden;
+    }
+    header{
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+      padding:14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+    }
+    .title{ font-weight:800; }
+    .stats{ display:flex; gap:10px; flex-wrap:wrap; font-size:14px; opacity:.9; }
+    .pill{
+      padding:6px 10px; border-radius:999px;
+      background: rgba(255,255,255,0.08);
+      border:1px solid rgba(255,255,255,0.12);
+    }
+    .arena{
+      position:absolute; inset:56px 0 0 0;
+      padding:16px;
+    }
+    #btn{
+      position:absolute;
+      padding:12px 16px;
+      border-radius:14px;
+      border:0;
+      font-weight:800;
+      color:#fff;
+      background: rgba(255,255,255,0.14);
+      border:1px solid rgba(255,255,255,0.16);
+      cursor:pointer;
+      transition: transform .08s ease;
+    }
+    #btn:active{ transform: scale(0.98); }
+    .center{
+      position:absolute; inset:56px 0 0 0;
+      display:flex; align-items:center; justify-content:center;
+      text-align:center; padding:20px;
+    }
+    .panel{
+      max-width:520px;
+      padding:22px 18px;
+      border-radius:18px;
+      background: rgba(0,0,0,0.18);
+      border:1px solid rgba(255,255,255,0.12);
+    }
+    .panel h1{ margin:0 0 10px; font-size:28px; }
+    .panel p{ margin:0 0 16px; opacity:.85; line-height:1.35; }
+    .row{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+    .btn2{
+      border:0; cursor:pointer; font-weight:800;
+      padding:12px 14px; border-radius:14px;
+      background: rgba(255,255,255,0.14);
+      color:#fff;
+      border:1px solid rgba(255,255,255,0.16);
+    }
+    .small{ font-size:12px; opacity:.7; margin-top:10px; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <header>
+      <div class="title">🎮 Поймай кнопку</div>
+      <div class="stats">
+        <div class="pill">Очки: <b id="score">0</b></div>
+        <div class="pill">Промахи: <b id="miss">0</b></div>
+        <div class="pill">Рекорд: <b id="best">0</b></div>
+        <div class="pill">Время: <b id="time">30</b>с</div>
+      </div>
+    </header>
+
+    <div class="arena" id="arena">
+      <button id="btn" style="display:none;">Лови!</button>
+    </div>
+
+    <div class="center" id="startScreen">
+      <div class="panel">
+        <h1>Правила простые</h1>
+        <p>Нажми на кнопку <b>“Лови!”</b> как можно больше раз за 30 секунд.<br>
+           Она будет убегать 😄</p>
+        <div class="row">
+          <button class="btn2" id="startEasy">Старт (легко)</button>
+          <button class="btn2" id="startHard">Старт (сложно)</button>
+        </div>
+        <div class="small">Подсказка: на “сложно” кнопка быстрее убегает.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const card = document.getElementById("card");
+    const arena = document.getElementById("arena");
+    const btn = document.getElementById("btn");
+    const startScreen = document.getElementById("startScreen");
+
+    const scoreEl = document.getElementById("score");
+    const missEl  = document.getElementById("miss");
+    const bestEl  = document.getElementById("best");
+    const timeEl  = document.getElementById("time");
+
+    const BEST_KEY = "catch_btn_best_v1";
+    let best = Number(localStorage.getItem(BEST_KEY) || 0);
+    bestEl.textContent = best;
+
+    let score = 0, miss = 0, time = 30;
+    let timer = null;
+    let mode = "easy"; // or hard
+
+    function rand(min, max){ return Math.floor(Math.random()*(max-min+1))+min; }
+
+    function placeButton(){
+      const rect = arena.getBoundingClientRect();
+
+      // размеры кнопки
+      const bw = btn.offsetWidth || 80;
+      const bh = btn.offsetHeight || 40;
+
+      // границы внутри арены
+      const padding = 10;
+      const maxX = rect.width  - bw - padding;
+      const maxY = rect.height - bh - padding;
+
+      const x = rand(padding, Math.max(padding, maxX));
+      const y = rand(padding, Math.max(padding, maxY));
+
+      btn.style.left = x + "px";
+      btn.style.top  = y + "px";
+    }
+
+    function startGame(selectedMode){
+      mode = selectedMode;
+      score = 0; miss = 0; time = 30;
+
+      scoreEl.textContent = score;
+      missEl.textContent = miss;
+      timeEl.textContent = time;
+
+      startScreen.style.display = "none";
+      btn.style.display = "block";
+      placeButton();
+
+      clearInterval(timer);
+      timer = setInterval(() => {
+        time--;
+        timeEl.textContent = time;
+        if(time <= 0){
+          endGame();
+        }
+      }, 1000);
+    }
+
+    function endGame(){
+      clearInterval(timer);
+      btn.style.display = "none";
+      startScreen.style.display = "flex";
+
+      if(score > best){
+        best = score;
+        localStorage.setItem(BEST_KEY, best);
+        bestEl.textContent = best;
+      }
+
+      // обновим текст на экране
+      startScreen.querySelector("h1").textContent = "Игра окончена!";
+      startScreen.querySelector("p").innerHTML =
+        `Твои очки: <b>${score}</b><br>Промахи: <b>${miss}</b><br>` +
+        (score === best ? "Новый рекорд! 🏆" : `Рекорд: <b>${best}</b>`);
+    }
+
+    // клик по кнопке = очко и перенос
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      score++;
+      scoreEl.textContent = score;
+      placeButton();
+    });
+
+    // “убегание”: при наведении/приближении
+    btn.addEventListener("mouseenter", () => {
+      if(btn.style.display === "none") return;
+      if(mode === "hard") placeButton();
+      else if(Math.random() < 0.45) placeButton();
+    });
+
+    // промах (клик в арене мимо кнопки)
+    arena.addEventListener("click", () => {
+      if(btn.style.display === "none") return;
+      miss++;
+      missEl.textContent = miss;
+      if(mode === "hard" && Math.random() < 0.35) placeButton();
+    });
+
+    // стартовые кнопки
+    document.getElementById("startEasy").addEventListener("click", () => startGame("easy"));
+    document.getElementById("startHard").addEventListener("click", () => startGame("hard"));
+  </script>
+</body>
+</html>
